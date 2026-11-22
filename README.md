@@ -122,3 +122,20 @@ before using the dashboard to make or communicate business decisions.
 design. Actual datasets, implementation details, tools, and analytical results
 will be updated as development progresses.
 
+## Synthetic GPS data
+
+The project includes a reproducible generator for fictional Pune mobility data.
+It does not use real people's location data or external APIs. From the project
+root, install the Python dependencies and run the script:
+
+```powershell
+python -m pip install -r requirements.txt
+python generate_gps_data.py
+```
+
+In VS Code, open the project folder, select the Python interpreter you want to
+use, and run those commands in the integrated terminal. The script creates the
+`data` folder when needed and writes `gps_pings.csv`, `store_locations.csv`,
+and `commercial_zones.csv` there. It generates 100,000 GPS pings for 10,000
+devices for one simulated day and prints dataset validation summaries.
+
