@@ -139,3 +139,10 @@ use, and run those commands in the integrated terminal. The script creates the
 and `commercial_zones.csv` there. It generates 100,000 GPS pings for 10,000
 devices for one simulated day and prints dataset validation summaries.
 
+## Snowflake setup
+
+Day 1 account, worksheet, database, CSV upload, and Python connector instructions
+are in [snowflake/README.md](./snowflake/README.md). Run
+`snowflake/create_database.sql` in your own Snowflake worksheet; this project
+cannot verify Snowflake account resources until you execute the SQL there.
+
