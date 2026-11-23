@@ -141,8 +141,14 @@ devices for one simulated day and prints dataset validation summaries.
 
 ## Snowflake setup
 
-Day 1 account, worksheet, database, CSV upload, and Python connector instructions
-are in [snowflake/README.md](./snowflake/README.md). Run
-`snowflake/create_database.sql` in your own Snowflake worksheet; this project
-cannot verify Snowflake account resources until you execute the SQL there.
+The [Snowflake Week 1 guide](./snowflake/README.md) explains account access,
+worksheet setup, table creation, loading, validation, and spatial SQL. Run
+`snowflake/create_database.sql`, `snowflake/create_tables.sql`, and
+`snowflake/file_format.sql` in your own Snowflake worksheet before running
+`scripts/load_to_snowflake.py`. The Python loader has a local
+`--validate-only` mode and does not regenerate the source CSVs.
+
+Snowflake-side setup and query execution remain pending until run and verified
+in the account. See [the Week 1 report](./reports/week1_progress.md) for the
+actual local validation results and manual steps still required.
 

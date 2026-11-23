@@ -49,85 +49,91 @@ and suspends it after 60 idle seconds. Running queries or loading data can
 consume credits. Leave it unused when you are finished; you can also suspend it
 from **Admin → Warehouses** in Snowsight.
 
-## 4. Upload the three CSV files in Snowsight
+## 4. Create the tables, file format, and internal stage
 
-After the database/schema creation succeeds:
+In a Snowsight SQL worksheet, run these scripts in order:
 
-1. In Snowsight, open **Data → Databases**, select `GEOPULSE_DB`, then its
-   `RAW` schema. Alternatively, use the **Add Data / Load Data** workflow if
-   that is how your Snowsight version presents local uploads.
-2. Choose the option to load files from your computer and select one file at a
-   time from this project's `data` folder. Choose CSV and confirm that the
-   first row contains column headers.
-3. Set the destination database to `GEOPULSE_DB`, schema to `RAW`, and use
-   these table names:
+1. `snowflake/create_database.sql` (already created for Day 1).
+2. `snowflake/create_tables.sql`.
+3. `snowflake/file_format.sql`.
 
-   | Local file | Table |
-   | --- | --- |
-   | `data/gps_pings.csv` | `GPS_PINGS` |
-   | `data/store_locations.csv` | `STORE_LOCATIONS` |
-   | `data/commercial_zones.csv` | `COMMERCIAL_ZONES` |
+The tables retain the original coordinate columns. The file format skips each
+CSV header, accepts quoted fields, and parses timestamps as
+`YYYY-MM-DD HH24:MI:SS`. The internal stage is used by the loader.
 
-4. Review the preview and inferred column types before starting each load.
-   `Timestamp` should be interpreted as a timestamp (format
-   `YYYY-MM-DD HH24:MI:SS`); latitude/longitude and `Radius_Meters` should be
-   numeric. Confirm the load succeeded and the reported row count is sensible.
-5. Do not upload the PDFs, dashboard files, or ZIP archive as data tables.
+## 5. Configure the connector and validate the local CSVs
 
-If Snowsight asks for a warehouse during loading, select `GEOPULSE_WH`. Its
-auto-resume setting may start compute and incur credits.
+Copy `.env.example` to `.env`, then replace the account and user placeholders
+with your own values. The `.env` file is Git-ignored. Keep passwords out of it;
+the default `externalbrowser` authenticator uses browser sign-in.
 
-## 5. Install and configure the Python connector
-
-From the project root, install the dependency recorded in `requirements.txt`:
+Install the requirements from the project root:
 
 ```powershell
-python -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
-In the VS Code PowerShell terminal, set non-secret connection settings for the
-current terminal session. Use your Snowflake account identifier (not the full
-web URL) and your login name:
+Before any Snowflake login, validate the existing files locally:
 
 ```powershell
-$env:SNOWFLAKE_ACCOUNT = "your-account-identifier"
-$env:SNOWFLAKE_USER = "your-login-name"
-$env:SNOWFLAKE_ROLE = "SYSADMIN"
-$env:SNOWFLAKE_WAREHOUSE = "GEOPULSE_WH"
-$env:SNOWFLAKE_DATABASE = "GEOPULSE_DB"
-$env:SNOWFLAKE_SCHEMA = "RAW"
+.\.venv\Scripts\python.exe scripts\load_to_snowflake.py --validate-only
 ```
 
-The example defaults to `externalbrowser` authentication, which asks Snowflake
-to authenticate through your browser rather than storing your password in
-source code. Run it in the same terminal session:
+The loader checks the file schemas, record/device minimums, 12 store rows,
+8 zone rows, timestamps, missing values, duplicates, radii, and Pune coordinate
+bounds. This mode does not connect to Snowflake and does not change any CSV.
+
+## 6. Load the existing files once the account is accessible
+
+After you run the three SQL setup scripts and confirm that you can sign in,
+run this from the project root:
 
 ```powershell
-python snowflake/connect_test.py
+.\.venv\Scripts\python.exe scripts\load_to_snowflake.py
 ```
 
-The script prints the active account, user, role, warehouse, database, and
-schema if the connection succeeds. Its query can resume the warehouse and
-consume credits. If your account requires password authentication instead,
-set `SNOWFLAKE_AUTHENTICATOR` to `snowflake` and make `SNOWFLAKE_PASSWORD`
-available to the process through an approved secret manager or your operating
-system's protected environment-variable mechanism. Never put the password in
-the script, README, shell command history, or Git.
+It reads the three CSVs without regenerating them, uploads them to the
+`GEOPULSE_UPLOAD_STAGE` internal stage, uses the configured format and `COPY
+INTO` to populate temporary load tables, then `MERGE`s into the final tables.
+GPS rows use `DEVICE_ID` plus `EVENT_TIMESTAMP` as the merge key; store and zone
+rows use their IDs. Re-running this loader updates matching rows instead of
+adding another copy. It compares final Snowflake row counts and checks that all
+GEOGRAPHY values are non-NULL.
 
-Environment variables set with PowerShell `$env:...` last only for that
-terminal session. Set them again in a new terminal. Do not put real secrets in
-`.env.example` or commit a local `.env` file.
+If you prefer setting variables in the current PowerShell session instead of
+using `.env`, set `SNOWFLAKE_ACCOUNT`, `SNOWFLAKE_USER`,
+`SNOWFLAKE_AUTHENTICATOR=externalbrowser`, and optionally `SNOWFLAKE_ROLE`.
+The account setting is the Snowflake account identifier, not the full web URL.
+For password authentication, set `SNOWFLAKE_AUTHENTICATOR=snowflake` and get
+`SNOWFLAKE_PASSWORD` from an approved secret manager or protected environment
+setting. Never put passwords in source code or shell command history.
 
-## 6. Day 1 completion checklist
+You may also use Snowsight's **Add Data / Load Data** wizard to upload one CSV
+at a time from the `data` folder. Choose CSV, select `GEOPULSE_DB.RAW`, keep the
+header row enabled, and review the inferred timestamp and numeric types. That
+wizard loads directly into the selected table, so **do not use it and the
+Python loader for the same files**: a direct second load can create duplicates.
+The Python loader is the recommended rerunnable path.
 
-- [ ] You can sign in to Snowsight.
-- [ ] You ran `snowflake/create_database.sql` successfully.
-- [ ] `SHOW DATABASES`, `SHOW SCHEMAS`, and `SHOW WAREHOUSES` list the expected
-  objects.
-- [ ] You optionally loaded the three CSVs through Snowsight and confirmed each
-  table's row count.
-- [ ] If using Python, `snowflake/connect_test.py` connected and displayed the
-  expected session context.
+For a connection-only check, run
+`.\.venv\Scripts\python.exe snowflake\connect_test.py`; it prints the current
+account/session context without loading any data.
+
+## 7. Validate and run the basic spatial queries
+
+In Snowsight, run `snowflake/validation.sql` to compare Snowflake counts and
+quality checks with the CSV source counts. Then run
+`snowflake/spatial_queries.sql` to populate any missing points and try the
+distance, 500-meter Store A filter, and per-store nearby-ping count queries.
+`STORE001` is the documented example for Store A. Snowflake must be accessible
+before these results can be recorded.
+
+## 8. Week 1 status
+
+The SQL and Python workflow is implemented, but database creation, loading,
+and spatial-query execution are pending until you sign in and run them in your
+Snowflake account. See `reports/week1_progress.md` for the verified local
+source counts and the tasks that still need account-side execution.
 
 Official references:
 

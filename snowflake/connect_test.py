@@ -1,8 +1,10 @@
 """Verify a Snowflake connection using environment-based settings."""
 
 import os
+from pathlib import Path
 
 import snowflake.connector
+from dotenv import load_dotenv
 
 
 def required_environment_variable(name: str) -> str:
@@ -17,6 +19,8 @@ def required_environment_variable(name: str) -> str:
 
 def main() -> None:
     """Connect to Snowflake and print the active session context."""
+    project_root = Path(__file__).resolve().parents[1]
+    load_dotenv(project_root / ".env")
     authenticator = os.getenv("SNOWFLAKE_AUTHENTICATOR", "externalbrowser")
     connection_options = {
         "account": required_environment_variable("SNOWFLAKE_ACCOUNT"),
