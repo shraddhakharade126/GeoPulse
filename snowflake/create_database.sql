@@ -1,4 +1,5 @@
--- Create GeoPulse's database. This is safe to run more than once.
+-- Day 1 setup: create GeoPulse's database and raw-data schema.
+-- This script does not create tables, stages, file formats, or load CSV files.
 CREATE DATABASE IF NOT EXISTS GEOPULSE_DB
     COMMENT = 'GeoPulse retail mobility analytics';
 

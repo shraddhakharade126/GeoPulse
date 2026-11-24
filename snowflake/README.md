@@ -5,6 +5,13 @@ connectivity. It does not load data from Python or perform spatial analysis.
 No Snowflake resource is considered configured until you run and verify the SQL
 in your own account.
 
+## Day 1 scope
+
+Day 1 covers account access, database/schema setup, warehouse selection, and a
+connection check only. It does not create project tables, stage or load CSV
+data, run spatial joins, or configure dbt. Those work items belong to later
+days.
+
 ## 1. Create or access an account
 
 - If Infotact Solutions has provided an account URL and login, use those details
