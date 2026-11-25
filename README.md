@@ -152,3 +152,47 @@ Snowflake-side setup and query execution remain pending until run and verified
 in the account. See [the Week 1 report](./reports/week1_progress.md) for the
 actual local validation results and manual steps still required.
 
+## Week 2 Day 2: Spark and Sedona preparation
+
+The Day 2 pipeline reads the existing three CSVs, validates their headers,
+Spark data types, row counts, and missing values, then saves them as Parquet
+under `output/day2/`. GPS pings additionally receive a Sedona `geometry`
+column. Point creation uses longitude as X and latitude as Y and checks those
+coordinates before writing. The source CSVs and dashboard are not changed.
+No buffers are created by this pipeline.
+
+### Prerequisites
+
+- Python 3.9 or later and Java 17 or 21. Spark 4.0 does not support Java 25;
+  if your only installed Java is 25, install Temurin 21, then set `JAVA_HOME`
+  to the installed JDK directory before starting the pipeline:
+
+```powershell
+winget install --id EclipseAdoptium.Temurin.21.JDK --exact
+$env:JAVA_HOME = "C:\Program Files\Eclipse Adoptium\<installed-jdk-folder>"
+$env:PATH = "$env:JAVA_HOME\bin;$env:PATH"
+```
+
+Replace `<installed-jdk-folder>` with the actual directory name created by the
+installer. The script checks the selected Java version before starting Spark.
+- From the project root, install the pinned PySpark/Sedona pair into the
+  project's virtual environment:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+```
+
+The pipeline fetches the matching Sedona JVM jar through Maven when Spark
+starts, so Maven Central must be reachable the first time it runs.
+
+### Run
+
+```powershell
+.\.venv\Scripts\python.exe scripts\prepare_spatial_data.py
+```
+
+The output folders are `output/day2/gps_pings/`,
+`output/day2/store_locations/`, and `output/day2/commercial_zones/`.
+Rerunning replaces only those three Day 2 Parquet folders. These generated
+outputs are excluded from Git; rerun the pipeline to recreate them.
+
