@@ -3,9 +3,8 @@
 import csv
 import json
 from pathlib import Path
-from typing import Any
 
-from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql import DataFrame, Row, SparkSession
 from pyspark.sql.functions import col, expr, lit, sum as spark_sum, when
 from sedona.spark import SedonaContext
 
@@ -40,6 +39,7 @@ def require_parquet_directory(path: Path) -> None:
 def build_catchments(stores: DataFrame) -> DataFrame:
     """Create a metric buffer in UTM 43N and return its geometry in WGS84."""
     return (
+        # Sedona ST_Point uses X/Y order: longitude is X, latitude is Y.
         stores.withColumn(
             "store_geometry_wgs84",
             expr("ST_SetSRID(ST_Point(Longitude, Latitude), 4326)"),
@@ -100,7 +100,7 @@ def validate_inputs(gps: DataFrame, stores: DataFrame) -> tuple[int, int]:
     return gps_count, stores_count
 
 
-def validate_catchments(catchments: DataFrame) -> list[dict[str, Any]]:
+def validate_catchments(catchments: DataFrame) -> list[Row]:
     """Verify one valid 500-meter polygon and metric area per store."""
     count = catchments.count()
     if count != EXPECTED_STORE_COUNT:
@@ -118,15 +118,29 @@ def validate_catchments(catchments: DataFrame) -> list[dict[str, Any]]:
         ).alias("invalid_catchments"),
         spark_sum(
             when(
-                (col("buffer_edge_distance_m") < BUFFER_METERS - BUFFER_DISTANCE_TOLERANCE_METERS)
-                | (col("buffer_edge_distance_m") > BUFFER_METERS + BUFFER_DISTANCE_TOLERANCE_METERS),
+                (
+                    col("buffer_edge_distance_m")
+                    < BUFFER_METERS - BUFFER_DISTANCE_TOLERANCE_METERS
+                )
+                | (
+                    col("buffer_edge_distance_m")
+                    > BUFFER_METERS + BUFFER_DISTANCE_TOLERANCE_METERS
+                ),
                 1,
             ).otherwise(0)
         ).alias("incorrect_buffer_distances"),
         spark_sum(
             when(
-                (col("catchment_area_sq_m") < EXPECTED_CIRCLE_AREA_SQUARE_METERS * (1 - AREA_TOLERANCE_FRACTION))
-                | (col("catchment_area_sq_m") > EXPECTED_CIRCLE_AREA_SQUARE_METERS * (1 + AREA_TOLERANCE_FRACTION)),
+                (
+                    col("catchment_area_sq_m")
+                    < EXPECTED_CIRCLE_AREA_SQUARE_METERS
+                    * (1 - AREA_TOLERANCE_FRACTION)
+                )
+                | (
+                    col("catchment_area_sq_m")
+                    > EXPECTED_CIRCLE_AREA_SQUARE_METERS
+                    * (1 + AREA_TOLERANCE_FRACTION)
+                ),
                 1,
             ).otherwise(0)
         ).alias("unexpected_areas"),
@@ -173,11 +187,11 @@ def validate_catchments(catchments: DataFrame) -> list[dict[str, Any]]:
     )
 
 
-def write_outputs(rows: list[dict[str, Any]]) -> None:
+def write_outputs(rows: list[Row]) -> None:
     """Write standards-compliant GeoJSON and a compact CSV area summary."""
     DAY3_OUTPUT_DIRECTORY.mkdir(parents=True, exist_ok=True)
-    features: list[dict[str, Any]] = []
-    summary_rows: list[dict[str, Any]] = []
+    features: list[dict[str, object]] = []
+    summary_rows: list[dict[str, str]] = []
     for row in rows:
         area = float(row["catchment_area_sq_m"])
         features.append(

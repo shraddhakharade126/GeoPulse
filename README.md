@@ -219,3 +219,14 @@ meters). No source CSVs or dashboard files are modified. This script uses the
 GeoTools wrapper matching Sedona 1.7.1 for `ST_Transform`; Maven Central must
 be reachable when Spark first resolves its JVM dependencies.
 
+### Day 3 verification status
+
+The source store CSV has 12 locations. The pipeline enforces one output
+polygon per unique store, polygon validity, EPSG:4326 output SRID, buffer-edge
+distance within 1 meter of 500 meters, and area within 2% of a 500-meter
+circle. These checks have not yet been observed on a Sedona run because this
+environment has only Java 25 (PySpark 4.0 requires Java 17 or 21) and the Day 2
+Parquet folders have not been generated. Install a supported JDK, run Day 2
+preparation, and then run the Day 3 command above before treating the outputs
+as validated.
+
