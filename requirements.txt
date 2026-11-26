@@ -4,3 +4,4 @@ snowflake-connector-python>=3.15,<5
 python-dotenv>=1.0,<2
 pyspark==4.0.1
 apache-sedona==1.7.1
+geopandas>=1.0,<2

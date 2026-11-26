@@ -196,3 +196,26 @@ The output folders are `output/day2/gps_pings/`,
 Rerunning replaces only those three Day 2 Parquet folders. These generated
 outputs are excluded from Git; rerun the pipeline to recreate them.
 
+## Week 2 Day 3: Store catchments
+
+Day 3 uses the prepared Day 2 GPS and store Parquet datasets. Run the Day 2
+preparation command above first if those folders do not yet exist. The store
+points are tagged EPSG:4326, transformed to UTM Zone 43N (EPSG:32643), buffered
+by 500 meters in that projected CRS, and transformed back to EPSG:4326 for the
+GeoJSON. Sedona validates the one-polygon-per-store count, validity, WGS84
+SRID, boundary distance, and approximate circular area. The GPS Parquet is
+loaded and checked as a prerequisite; this day does not perform spatial joins.
+
+Run from the project root:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\create_store_catchments.py
+```
+
+Outputs are `output/day3/store_catchments.geojson` (a WGS84 GeoJSON
+FeatureCollection with all 12 stores) and
+`output/day3/store_catchment_summary.csv` (store ID, name, and area in square
+meters). No source CSVs or dashboard files are modified. This script uses the
+GeoTools wrapper matching Sedona 1.7.1 for `ST_Transform`; Maven Central must
+be reachable when Spark first resolves its JVM dependencies.
+

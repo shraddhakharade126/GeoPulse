@@ -29,6 +29,7 @@ SEDONA_JAR = (
     "org.apache.sedona:sedona-spark-shaded-4.0_2.13:"
     f"{SEDONA_VERSION}"
 )
+GEOTOOLS_WRAPPER = f"org.datasyslab:geotools-wrapper:{SEDONA_VERSION}-28.5"
 TIMESTAMP_FORMAT = "yyyy-MM-dd HH:mm:ss"
 
 DATASETS = {
@@ -214,13 +215,13 @@ def write_parquet(dataset_name: str, frame: DataFrame) -> Path:
     return output_path
 
 
-def main() -> None:
-    """Prepare all three source datasets and stop Spark even if processing fails."""
+def create_sedona_session(app_name: str) -> SparkSession:
+    """Create the shared Spark/Sedona session, including CRS transform support."""
     validate_java_runtime()
-    spark = (
-        SparkSession.builder.appName("GeoPulse-Day2-Spatial-Preparation")
+    return (
+        SparkSession.builder.appName(app_name)
         .master("local[*]")
-        .config("spark.jars.packages", SEDONA_JAR)
+        .config("spark.jars.packages", f"{SEDONA_JAR},{GEOTOOLS_WRAPPER}")
         .config(
             "spark.sql.extensions",
             "org.apache.sedona.sql.SedonaSqlExtensions",
@@ -233,6 +234,11 @@ def main() -> None:
         .config("spark.sql.shuffle.partitions", "4")
         .getOrCreate()
     )
+
+
+def main() -> None:
+    """Prepare all three source datasets and stop Spark even if processing fails."""
+    spark = create_sedona_session("GeoPulse-Day2-Spatial-Preparation")
     try:
         SedonaContext.create(spark)
 
