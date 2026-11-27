@@ -230,3 +230,41 @@ Parquet folders have not been generated. Install a supported JDK, run Day 2
 preparation, and then run the Day 3 command above before treating the outputs
 as validated.
 
+## Week 2 Day 4: GPS-to-store spatial join
+
+This pipeline requires the existing Day 2 GPS Parquet
+(`output/day2/gps_pings/`) and Day 3 GeoJSON
+(`output/day3/store_catchments.geojson`). It fails with an explicit prerequisite
+message if either is missing and does not regenerate pings or catchments.
+GeoJSON catchments and Day 2 GPS points are tagged with EPSG:4326 before Sedona
+evaluates `ST_Contains`. Matching rows preserve the original GPS fields and add
+store ID/name. The CSV represents the GPS geometry as WKT; Parquet preserves it
+as a geometry column.
+
+Run from the project root after completing and validating Day 2 and Day 3:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\prepare_spatial_data.py
+.\.venv\Scripts\python.exe scripts\create_store_catchments.py
+.\.venv\Scripts\python.exe scripts\join_gps_to_stores.py
+```
+
+Day 2 and Day 3 commands are prerequisites only when their outputs are absent;
+the Day 4 script itself never reruns them. Outputs are
+`outputs/gps_store_matches.parquet/`, `outputs/gps_store_matches.csv`, and
+`outputs/gps_store_matches_summary.json`. The summary includes total, matched,
+and unmatched points; total match rows; points within multiple catchments;
+and ping counts for all 12 stores. A ping may match multiple stores when
+500-meter catchments overlap, so total match rows can exceed distinct matched
+GPS points. `ST_Contains` matches points inside a polygon, excluding points
+exactly on its boundary.
+
+### Day 4 verification status
+
+The Day 4 pipeline and prerequisite checks are implemented. The current
+workspace does not contain the Day 2 Parquet folders or Day 3 catchment GeoJSON,
+so no Sedona join counts or output datasets can be claimed yet. The local
+runtime also exposes Java 25, which is not supported by this project's
+PySpark 4.0 setup (Java 17 or 21 is required). Run the setup above with a
+supported JDK to generate and verify the actual results.
+
